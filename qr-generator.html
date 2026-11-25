@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What's Real? — QR Code Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 p-6 font-sans">
+  <div class="max-w-4xl mx-auto flex flex-col gap-6">
+    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-800 pb-4">
+      <div>
+        <h1 class="text-2xl font-black tracking-tight">
+          What's Real? — <span class="text-[#d9ff3f]">QR Codes par manche</span>
+        </h1>
+        <p class="text-sm text-zinc-400">
+          Génère un QR code unique lié à chaque identifiant (<code class="text-zinc-200">id</code>) de tes manches.
+        </p>
+      </div>
+      <a
+        href="./index.html"
+        class="self-start sm:self-auto bg-zinc-800 hover:bg-zinc-700 text-sm font-bold px-4 py-2 rounded-xl transition"
+      >
+        ← Retour au Timer
+      </a>
+    </header>
+
+    <!-- Configuration de l'URL de base -->
+    <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+      <div class="flex-1 flex flex-col gap-1.5">
+        <label for="baseUrlInput" class="text-xs font-bold uppercase tracking-wider text-zinc-400">
+          URL de base du site (sans slash à la fin)
+        </label>
+        <input
+          id="baseUrlInput"
+          type="url"
+          placeholder="https://whats-real.vercel.app"
+          class="bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#d9ff3f]"
+        />
+      </div>
+      <button
+        id="regenerateBtn"
+        type="button"
+        class="bg-[#d9ff3f] text-zinc-950 font-black text-sm px-5 py-2.5 rounded-xl hover:brightness-95 active:scale-95 transition cursor-pointer"
+      >
+        Actualiser les QR codes
+      </button>
+    </section>
+
+    <!-- Grille des QR codes -->
+    <section id="qrGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></section>
+  </div>
+
+  <!-- Charge ROUNDS depuis app.js sans lancer le timer -->
+  <script src="./app.js"></script>
+  <script>
+    const baseUrlInput = document.getElementById("baseUrlInput");
+    const regenerateBtn = document.getElementById("regenerateBtn");
+    const qrGrid = document.getElementById("qrGrid");
+
+    function getDefaultBaseUrl() {
+      const origin = window.location.origin;
+      const pathDir = window.location.pathname.replace(/\/[^/]*$/, "");
+      if (!origin || origin === "null" || origin.startsWith("file://")) {
+        return "https://whats-real-addon.vercel.app";
+      }
+      return `${origin}${pathDir}`;
+    }
+
+    function buildRoundUrl(baseUrl, roundId) {
+      const cleanBase = baseUrl.trim().replace(/\/+$/, "");
+      return `${cleanBase}/index.html?round=${encodeURIComponent(roundId)}`;
+    }
+
+    function renderAllQRCodes() {
+      qrGrid.innerHTML = "";
+      const baseUrl = baseUrlInput.value || getDefaultBaseUrl();
+      const roundsList = typeof ROUNDS !== "undefined" ? ROUNDS : [];
+
+      roundsList.forEach((round) => {
+        const targetUrl = buildRoundUrl(baseUrl, round.id);
+
+        const card = document.createElement("div");
+        card.className =
+          "bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col items-center gap-3 text-center";
+
+        const badge = document.createElement("span");
+        badge.className =
+          "text-xs font-black uppercase px-2.5 py-1 rounded-full bg-[#d9ff3f]/15 text-[#d9ff3f]";
+        badge.textContent = `Round #${round.id} • ${round.stars || ""}`;
+
+        const title = document.createElement("h2");
+        title.className = "font-bold text-sm text-zinc-100";
+        title.textContent = round.title || `Round ${round.id}`;
+
+        const qrBox = document.createElement("div");
+        qrBox.className = "bg-white p-3 rounded-xl";
+
+        const urlText = document.createElement("p");
+        urlText.className = "text-[11px] text-zinc-400 break-all max-w-full";
+        urlText.textContent = targetUrl;
+
+        const downloadBtn = document.createElement("button");
+        downloadBtn.type = "button";
+        downloadBtn.className =
+          "mt-auto bg-zinc-800 hover:bg-zinc-700 text-xs font-bold px-3.5 py-2 rounded-xl transition cursor-pointer";
+        downloadBtn.textContent = "Télécharger PNG";
+
+        card.appendChild(badge);
+        card.appendChild(title);
+        card.appendChild(qrBox);
+        card.appendChild(urlText);
+        card.appendChild(downloadBtn);
+        qrGrid.appendChild(card);
+
+        const qr = new QRCode(qrBox, {
+          text: targetUrl,
+          width: 156,
+          height: 156,
+          colorDark: "#111111",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+
+        downloadBtn.addEventListener("click", () => {
+          const canvas = qrBox.querySelector("canvas");
+          const img = qrBox.querySelector("img");
+          const dataUrl = canvas ? canvas.toDataURL("image/png") : img?.src;
+          if (!dataUrl) return;
+          const link = document.createElement("a");
+          link.download = `whats-real-round-${round.id}-qr.png`;
+          link.href = dataUrl;
+          link.click();
+        });
+      });
+    }
+
+    baseUrlInput.value = getDefaultBaseUrl();
+    regenerateBtn.addEventListener("click", renderAllQRCodes);
+    renderAllQRCodes();
+  </script>
+</body>
+</html>
